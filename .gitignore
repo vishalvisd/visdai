@@ -3,3 +3,4 @@ snapshots
 storage
 __pycache__/
 .idea/
+.env

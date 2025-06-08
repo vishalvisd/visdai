@@ -14,6 +14,7 @@ question = "Which are the movies whose name starts with 'b'?"
 # question = "total length of all movies?"
 # question = "Which movies released in 2019?"
 
+#nyOFoGpCrgRjFrAxyPBgswZoIRAxACKVHu
 client = QdrantClient(url="http://localhost:6333")
 
 collection_name = "MovieDB"
