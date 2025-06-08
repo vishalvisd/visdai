@@ -1,0 +1,5 @@
+.venv
+snapshots
+storage
+__pycache__/
+.idea/
