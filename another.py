@@ -66,33 +66,63 @@ if cached_sql:
     sql_query = cached_sql
 else:
     print("\nNo match found, using LLM to generate SQL...")
-    template = """
-You are a PostgreSQL expert. Given a question, generate only the SQL query that answers it.
 
-- Do not run the query.
-- Return only a single SQL query.
-- Wrap column names in double quotes (").
-- Use LIMIT 5 unless otherwise specified.
-- Use only the schema shown below.
-- Use date('now') for "today".
 
-Schema:
-{table_info}
+    def format_prompt(model_name: str, table_info: str, question: str) -> str:
+        # Core reusable components
+        system_message = """
+    You are a PostgreSQL expert.
 
-Question: {input}
-SQL:"""
+    Given the following database schema and a user question, return only one SQL query that answers it. Do not return any explanation, follow-up questions, or additional queries.
+
+    Rules:
+    - Output only a single SQL statement.
+    - Do not include the original question or any other text.
+    - Wrap column names in double quotes (").
+    - Use LIMIT 5 unless otherwise stated.
+    - Use only the schema shown below.
+    - Use date('now') for "today".
+    """.strip()
+
+        user_message = f"""
+    Schema:
+    {table_info}
+
+    Question: {question}
+    SQL:
+    """.strip()
+
+        # Normalize model name
+        model_name = model_name.lower()
+
+        # Chat-style formatting for chat-tuned models
+        if any(chat_model in model_name for chat_model in ["qwen", "chatglm", "baichuan", "openchat"]):
+            return f"""
+<|im_start|>system
+{system_message}
+<|im_end|>
+
+<|im_start|>user
+{user_message}
+<|im_end|>
+
+<|im_start|>assistant
+""".strip()
+
+        # Instruction-style for models like Mistral
+        return f"{system_message}\n\n{user_message}"
 
     username = "postgres"
     password = "root"
     host = "localhost"
     port = 5432
-    mydatabase = "movies"
+    mydatabase = "vs_db"
 
     pg_uri = f"postgresql+psycopg2://{username}:{password}@{host}:{port}/{mydatabase}"
     db = SQLDatabase.from_uri(pg_uri)
 
-    # model_name = "Qwen/CodeQwen1.5-7B-Chat"
-    model_name = "mistralai/Mistral-7B-Instruct-v0.1"
+    model_name = "Qwen/CodeQwen1.5-7B-Chat"
+    # model_name = "mistralai/Mistral-7B-Instruct-v0.1"
     tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
     model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True)
     max_new_tokens = 256
@@ -109,11 +139,8 @@ SQL:"""
 
     # ---- RAG Application Flow ----
     table_info = db.get_table_info()
-    prompt = template.format(table_info=table_info, input=question)
-
-    # Step 1: Get LLM Response with SQL Query
-    # llm(prompt)[0]['generated_text']
-    print("Prompt to LLM:", prompt)
+    prompt = format_prompt(model_name, table_info, question) # template.format(table_info=table_info, input=question)
+    print("Input Prompt:\n", prompt)
     raw_output = llm.invoke(prompt)
     print("Raw Output:\n", raw_output)
 
